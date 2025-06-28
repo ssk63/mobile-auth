@@ -1,10 +1,11 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import authRoutes from './routes/auth.routes';
 import { db } from './db';
-import { users } from './db/schema';
 import { sql } from 'drizzle-orm';
+import { createError, handleError } from './utils/error';
 
 /**
  * Express application instance
@@ -14,19 +15,53 @@ import { sql } from 'drizzle-orm';
 
 const app = express();
 
+// Essential security headers
+app.use(helmet({
+  // Disable features not needed for API backend
+  contentSecurityPolicy: false, // Not needed for API-only backend
+  crossOriginEmbedderPolicy: false, // Not needed for API-only backend
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow mobile app access
+}));
+
+// Body parser with size limit
+app.use(express.json({ 
+  limit: '10kb',
+  verify: (req: Request, res: Response, buf: Buffer, encoding: string) => {
+    try {
+      JSON.parse(buf.toString());
+    } catch (e) {
+      handleError(
+        createError.badRequest('Invalid JSON payload', 'INVALID_JSON'),
+        res
+      );
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10kb' 
+}));
+
 /**
  * Rate limiting configuration
  * Protects against brute force and DDoS attacks
  * @constant {RateLimitRequestHandler}
  */
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' }
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+  handler: (req: Request, res: Response) => {
+    handleError(
+      createError.tooMany('Too many requests, please try again later.', 'RATE_LIMIT_EXCEEDED'),
+      res
+    );
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skipSuccessfulRequests: true // Only count failed attempts
 });
-
-// Middleware setup
-app.use(express.json());
 
 /**
  * CORS configuration
@@ -34,15 +69,44 @@ app.use(express.json());
  * @constant {string[]} allowedOrigins - List of allowed origins from environment or defaults
  */
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'exp://localhost:19000'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
+  exposedHeaders: ['Content-Length', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset']
 }));
 
-// Apply basic rate limiting
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-}));
+// Apply rate limiting
+app.use(limiter);
+
+/**
+ * Root route
+ * Provides API information and health status
+ * @route GET /
+ * @returns {Object} API information
+ */
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    name: 'Mobile Auth Backend',
+    version: '1.0.0',
+    description: 'OAuth 2.0 authentication service for mobile applications',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: {
+        google: '/auth/google/login',
+        callback: '/auth/callback',
+        refresh: '/auth/refresh',
+        logout: '/auth/logout',
+        email: {
+          requestCode: '/auth/email/request-code',
+          verify: '/auth/email/verify'
+        }
+      },
+      health: '/health'
+    }
+  });
+});
 
 /**
  * Health check endpoint
@@ -50,36 +114,21 @@ app.use(rateLimit({
  * @route GET /health
  * @returns {Object} Status information with timestamp
  */
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-/**
- * Database connection test endpoint
- * @route GET /db-test
- * @returns {Object} Database connection status
- */
-app.get('/db-test', async (req, res) => {
+app.get('/health', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    // Test raw SQL query
-    const sqlResult = await db.execute(sql`SELECT 1 as result`);
+    // Check database connection with a simple query
+    await db.execute(sql`SELECT 1`);
     
-    // Test table query
-    const usersCount = await db.select({ count: sql`count(*)` }).from(users);
-    
-    res.json({ 
-      status: 'ok',
-      message: 'Database connection successful',
-      sqlTest: sqlResult,
-      usersCount: usersCount[0].count
+    res.json({
+      status: 'healthy',
+      services: {
+        api: 'up',
+        database: 'up'
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Database test error:', error);
-    res.status(500).json({ 
-      status: 'error',
-      message: 'Database connection failed',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    next(createError.internal('Database health check failed', 'DB_HEALTH_CHECK_FAILED'));
   }
 });
 
@@ -94,9 +143,20 @@ app.use('/auth', authRoutes);
  * @param {Response} res - Express response object
  * @param {NextFunction} next - Express next function
  */
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Error:', err);
+  handleError(err, res);
+});
+
+// 404 handler
+app.use((req: Request, res: Response) => {
+  handleError(
+    createError.notFound(
+      `Cannot ${req.method} ${req.path}`,
+      'ROUTE_NOT_FOUND'
+    ),
+    res
+  );
 });
 
 export default app; 

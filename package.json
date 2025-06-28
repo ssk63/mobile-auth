@@ -1,20 +1,36 @@
 {
   "name": "mobile-auth",
   "version": "1.0.0",
-  "description": "Authentication backend for mobile app using OAuth and JWT",
+  "description": "A secure and scalable OAuth 2.0 authentication backend for mobile applications, featuring JWT session management, refresh token rotation, and PostgreSQL storage with Drizzle ORM",
+  "keywords": [
+    "oauth2",
+    "authentication",
+    "mobile",
+    "jwt",
+    "express",
+    "typescript",
+    "postgresql",
+    "drizzle-orm",
+    "google-auth"
+  ],
+  "author": {
+    "name": "Sathish Kumar"
+  },
+  "license": "MIT",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
+    "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
-    "db:migrate": "ts-node src/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@types/nodemailer": "^6.4.17",
     "argon2": "^0.31.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -23,8 +39,10 @@
     "express-rate-limit": "^7.5.1",
     "express-validator": "^7.2.1",
     "google-auth-library": "^9.6.3",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^7.0.3",
     "pg": "^8.16.2"
   },
   "devDependencies": {

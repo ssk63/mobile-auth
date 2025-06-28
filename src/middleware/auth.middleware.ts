@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { JWTService } from '../services/jwt.service';
+import { TokenPayload } from '../services/jwt.service';
+import { createError, handleError } from '../utils/error';
 
 /**
  * Extends Express Request type to include user information
@@ -10,9 +12,7 @@ declare global {
       /**
        * User information extracted from JWT
        */
-      user?: {
-        userId: string;
-      };
+      user?: TokenPayload;
     }
   }
 }
@@ -23,13 +23,13 @@ declare global {
  * @param {Response} res - Express response object
  * @param {NextFunction} next - Express next function
  * @returns {void | Response} Proceeds to next middleware or returns error response
- * @throws {Error} If token verification fails
  * 
  * @example
  * // Usage in routes
  * router.get('/protected', authenticateToken, (req, res) => {
  *   // Access authenticated user
  *   const userId = req.user?.userId;
+ *   const email = req.user?.email;
  * });
  */
 export const authenticateToken = (
@@ -37,18 +37,46 @@ export const authenticateToken = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token is required' });
-  }
-
   try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      throw createError.unauthorized('Authorization header is missing', 'AUTH_HEADER_MISSING');
+    }
+
+    const [scheme, token] = authHeader.split(' ');
+    
+    if (scheme !== 'Bearer' || !token) {
+      throw createError.unauthorized('Invalid authorization format. Use: Bearer <token>', 'INVALID_AUTH_FORMAT');
+    }
+
     const payload = JWTService.verifyAccessToken(token);
+    
+    // Ensure all required fields are present
+    if (!payload.userId || !payload.email) {
+      throw createError.forbidden('Invalid token payload', 'INVALID_TOKEN_PAYLOAD');
+    }
+
+    // Set the complete user payload
     req.user = payload;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    if (error instanceof Error) {
+      if (error.message === 'Token has been revoked') {
+        return handleError(
+          createError.unauthorized('Token has been revoked', 'TOKEN_REVOKED'),
+          res
+        );
+      }
+      if (error.message === 'Token has expired') {
+        return handleError(
+          createError.unauthorized('Token has expired', 'TOKEN_EXPIRED'),
+          res
+        );
+      }
+    }
+    return handleError(
+      createError.forbidden('Invalid token', 'INVALID_TOKEN'),
+      res
+    );
   }
 }; 

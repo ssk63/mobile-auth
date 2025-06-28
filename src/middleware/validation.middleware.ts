@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { validationResult, ValidationChain } from 'express-validator';
+import { validationResult, ValidationChain, body } from 'express-validator';
+import { createError } from '../utils/error';
 
 /**
  * Creates a validation middleware using express-validator chains
@@ -18,15 +19,41 @@ import { validationResult, ValidationChain } from 'express-validator';
  */
 export const validate = (validations: ValidationChain[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    // Run all validations
-    await Promise.all(validations.map(validation => validation.run(req)));
+    try {
+      // Run all validations
+      await Promise.all(validations.map(validation => validation.run(req)));
 
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      // Check for validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw createError.badRequest(
+          'Validation failed',
+          'VALIDATION_ERROR'
+        );
+      }
+
+      next();
+    } catch (error) {
+      // Pass error to global error handler
+      next(error);
     }
-
-    next();
   };
-}; 
+};
+
+export const emailVerificationRules = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+];
+
+export const verifyCodeRules = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('code')
+    .isLength({ min: 6, max: 6 })
+    .isNumeric()
+    .withMessage('Please provide a valid 6-digit verification code'),
+]; 

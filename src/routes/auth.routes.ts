@@ -2,9 +2,17 @@ import { Router } from 'express';
 import { body, query } from 'express-validator';
 import { AuthController } from '../controllers/auth.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validation.middleware';
+import { validate, emailVerificationRules, verifyCodeRules } from '../middleware/validation.middleware';
 
 const router = Router();
+
+/**
+ * @route GET /auth/google/login
+ * @desc Initiates Google OAuth flow
+ * @returns {void} - Redirects to Google consent screen
+ * @access Public
+ */
+router.get('/google/login', AuthController.googleLogin);
 
 /**
  * @route GET /auth/callback
@@ -47,6 +55,90 @@ router.post('/logout',
     body('refreshToken').isString().notEmpty().withMessage('Refresh token is required')
   ]),
   AuthController.logout
+);
+
+/**
+ * @route POST /auth/email/request-code
+ * @desc Request an email verification code for authentication
+ * @param {Object} req.body
+ * @param {string} req.body.email - Email address to send verification code to
+ * @returns {Object} { 
+ *   success: boolean,
+ *   message: string 
+ * }
+ * @example
+ * POST /auth/email/request-code
+ * {
+ *   "email": "user@example.com"
+ * }
+ * @example Response
+ * {
+ *   "success": true,
+ *   "message": "Verification code sent successfully"
+ * }
+ * @access Public
+ */
+router.post(
+  '/email/request-code',
+  emailVerificationRules,
+  validate,
+  AuthController.requestEmailVerification
+);
+
+/**
+ * @route POST /auth/email/verify
+ * @desc Verify email code and create/login user
+ * @param {Object} req.body
+ * @param {string} req.body.email - Email address that received the code
+ * @param {string} req.body.code - 6-digit verification code
+ * @returns {Object} {
+ *   success: boolean,
+ *   message: string,
+ *   data?: {
+ *     user: {
+ *       id: string,
+ *       email: string,
+ *       name: string,
+ *       lastLoginAt: Date,
+ *       loginCount: number,
+ *       createdAt: Date,
+ *       updatedAt: Date
+ *     },
+ *     accessToken: string,
+ *     refreshToken: string
+ *   }
+ * }
+ * @example
+ * POST /auth/email/verify
+ * {
+ *   "email": "user@example.com",
+ *   "code": "123456"
+ * }
+ * @example Response
+ * {
+ *   "success": true,
+ *   "message": "Email verified successfully",
+ *   "data": {
+ *     "user": {
+ *       "id": "uuid",
+ *       "email": "user@example.com",
+ *       "name": "user",
+ *       "lastLoginAt": "2024-01-01T00:00:00.000Z",
+ *       "loginCount": 1,
+ *       "createdAt": "2024-01-01T00:00:00.000Z",
+ *       "updatedAt": "2024-01-01T00:00:00.000Z"
+ *     },
+ *     "accessToken": "jwt.token.here",
+ *     "refreshToken": "refresh.token.here"
+ *   }
+ * }
+ * @access Public
+ */
+router.post(
+  '/email/verify',
+  verifyCodeRules,
+  validate,
+  AuthController.verifyEmailCode
 );
 
 export default router; 

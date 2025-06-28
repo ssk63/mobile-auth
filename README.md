@@ -1,239 +1,293 @@
 # Mobile Auth Backend
 
-A robust and secure authentication backend service built with Express.js and TypeScript, designed to handle OAuth 2.0 authentication flows for mobile applications. This service provides a secure intermediary layer between mobile applications and OAuth providers (such as Google), managing token exchange, session handling, and secure storage.
+A production-ready authentication service designed for mobile applications, providing secure OAuth 2.0 integration and session management. Built with TypeScript and Express.js, it offers a robust solution for handling authentication flows in mobile environments.
 
-## Table of Contents
-- [Features](#features)
-- [Architecture](#architecture)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3-blue.svg)](https://www.typescriptlang.org/)
+[![Express](https://img.shields.io/badge/Express-4.18.2-green.svg)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## 🌟 Overview
+
+This service provides a secure intermediary layer between mobile applications and OAuth providers (such as Google), managing token exchange, session handling, and secure storage. It's designed with security, scalability, and developer experience in mind.
+
+### ✨ Key Features
+- **OAuth 2.0 Authentication** with multiple provider support
+- **Secure JWT-based Session Management** with automatic token rotation
+- **PostgreSQL Database Integration** using Drizzle ORM
+- **Rate Limiting and Request Throttling** for enhanced security
+- **Comprehensive Error Handling** and logging
+- **Docker-ready** with development and production configurations
+- **TypeScript** for enhanced type safety and developer experience
+
+### 🛠️ Tech Stack
+- **Backend**: Node.js, Express.js, TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: OAuth 2.0, JWT
+- **Development**: Docker, ESLint, Prettier
+- **Security**: Helmet, Rate limiting, Token rotation, CORS
+
+## 📑 Table of Contents
 - [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
 - [Development](#development)
-- [Database Management](#database-management)
 - [API Documentation](#api-documentation)
-- [Mobile Integration Guide](#mobile-integration-guide)
-- [Security](#security)
+- [Security Features](#security-features)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Features
-
-✨ **Core Features**
-- OAuth 2.0 Authentication with multiple providers
-  - Google Sign-In integration
-  - Extensible architecture for additional providers
-- Secure JWT-based session management
-- Automatic refresh token rotation
-- Rate limiting and request throttling
-- Comprehensive error handling and logging
-
-🛠️ **Technical Stack**
-- TypeScript for enhanced type safety and developer experience
-- Express.js for robust API development
-- PostgreSQL with Drizzle ORM for type-safe database operations
-- Docker and Docker Compose for containerized development
-- Jest for unit and integration testing
-
-## Architecture
-
-The service follows a clean architecture pattern with clear separation of concerns:
-
-```
-src/
-├── controllers/    # Request handlers
-├── services/      # Business logic
-├── middleware/    # Express middleware
-├── db/           # Database operations
-└── routes/       # API route definitions
-```
-
-## Prerequisites
+## 📋 Prerequisites
 
 - Node.js (v18 or later)
 - Docker and Docker Compose
-- PostgreSQL (if running without Docker)
+- PostgreSQL (v16 recommended)
 - Google Cloud Platform account with OAuth 2.0 credentials
 
-## Getting Started
+## 🚀 Quick Start
 
-1. **Clone the Repository**
+1. **Clone & Install Dependencies**
    ```bash
    git clone <repository-url>
    cd mobile-auth
+   npm install
    ```
 
 2. **Environment Setup**
    ```bash
-   # Copy environment configuration
+   # Copy environment template
    cp .env.example .env
-
-   # Install dependencies
-   npm install
    ```
 
 3. **Configure Environment Variables**
    ```env
-   # Required OAuth Configuration
-   GOOGLE_CLIENT_ID=your_client_id
-   GOOGLE_CLIENT_SECRET=your_client_secret
-   
-   # Security Configuration
-   JWT_SECRET=your_secure_jwt_secret
-   JWT_EXPIRY=15m
-   
-   # Application Configuration
-   PORT=3000
-   NODE_ENV=development
-   
-   # Database Configuration
-   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mobile_auth
+   # Required environment variables are listed in the Environment Setup section below
    ```
 
-4. **Start Development Environment**
+4. **Start Services**
    ```bash
-   # Start services with Docker Compose
+   # Using Docker (recommended)
    docker-compose up -d
 
-   # Run database migrations
-   npm run db:migrate
+   # Or locally
+   npm run dev
    ```
 
-## Development
+## 🏗️ Project Structure
 
-```bash
-# Start development server with hot reload
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm run test
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
+```
+src/
+├── controllers/    # Request handlers and route logic
+├── services/      # Business logic and external service integration
+├── middleware/    # Express middleware (auth, validation, etc.)
+├── db/           # Database schema, migrations, and queries
+├── routes/       # API route definitions
+└── utils/        # Utility functions and error handling
 ```
 
-## Database Management
+## 💻 Development
+
+### Available Scripts
 
 ```bash
-# Generate new migration
-npm run db:generate
-
-# Apply migrations
-npm run db:migrate
-
-# Launch Drizzle Studio
-npm run db:studio
-
-# Test database connection
-npm run db:test
+npm run dev          # Start development server with hot reload
+npm run build        # Build production bundle
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run format       # Format code with Prettier
+npm run db:push      # Push database schema changes
+npm run db:generate  # Generate new migrations
+npm run db:studio    # Start Drizzle Studio for database management
 ```
 
-## API Documentation
+### Environment Setup
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=mobile_auth
+DB_SSL=false
+DB_POOL_SIZE=10
+DB_IDLE_TIMEOUT=30000
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# JWT Configuration
+JWT_SECRET=your_secure_jwt_secret
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_IN=7d
+
+# Application URLs
+APP_URL=http://localhost:3000
+APP_REDIRECT_URL=myauthapp://auth/callback
+ALLOWED_ORIGINS=http://localhost:3000,exp://localhost:19000
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:3000/auth/callback
+
+# Email Configuration
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASS=your_smtp_password
+EMAIL_FROM="Auth Service <auth@example.com>"
+```
+
+## 📚 API Documentation
 
 ### Authentication Endpoints
 
 #### OAuth Flow
-- **GET** `/auth/google/login`
-  - Initiates Google OAuth flow
-  - Returns: Redirect to Google consent screen
+```typescript
+GET /auth/google/login
+// Initiates Google OAuth flow
+// Redirects to Google consent screen
 
-- **GET** `/auth/callback`
-  - OAuth provider callback handler
-  - Query Params: `code`, `state`
-  - Returns: Redirect to mobile app with tokens
+GET /auth/callback
+// Handles OAuth provider callback
+// Query Parameters: code (string)
+// Returns: Redirects to mobile app with tokens
 
-#### Token Management
-- **POST** `/auth/refresh`
-  - Refresh access token
-  - Headers: `Authorization: Bearer <refresh_token>`
-  - Returns: `{ accessToken, refreshToken }`
+POST /auth/refresh
+// Refresh access token
+// Body: { refreshToken: string }
+// Returns: { accessToken, refreshToken }
 
-- **POST** `/auth/logout`
-  - Invalidate current session
-  - Headers: `Authorization: Bearer <access_token>`
-  - Returns: `200 OK`
+POST /auth/logout
+// Invalidate current session
+// Body: { refreshToken: string }
+// Returns: 200 OK
+```
 
-## Mobile Integration Guide
+#### Email Verification Flow
+```typescript
+POST /auth/email/request-code
+// Request email verification code
+// Body: { email: string }
+// Returns: { success: true, message: string }
 
-### Deep Linking Setup
+POST /auth/email/verify
+// Verify email code and login/register
+// Body: { email: string, code: string }
+// Returns: {
+//   success: true,
+//   message: string,
+//   data: {
+//     user: {
+//       id: string,
+//       email: string,
+//       name: string,
+//       lastLoginAt: string,
+//       loginCount: number,
+//       createdAt: string,
+//       updatedAt: string
+//     },
+//     accessToken: string,
+//     refreshToken: string
+//   }
+// }
+```
 
-1. **Configure URL Scheme**
-   ```xml
-   <!-- Android: AndroidManifest.xml -->
-   <data
-     android:scheme="myauthapp"
-     android:host="auth" />
-   ```
-   ```swift
-   // iOS: Info.plist
-   <key>CFBundleURLSchemes</key>
-   <array>
-     <string>myauthapp</string>
-   </array>
-   ```
+### Response Formats
 
-2. **Handle Authentication Callback**
-   ```typescript
-   // React Native example
-   import { Linking } from 'react-native';
+Success Response:
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbG...",
+    "refreshToken": "eyJhbG..."
+  }
+}
+```
 
-   const handleDeepLink = (event: { url: string }) => {
-     const { accessToken, refreshToken } = parseAuthCallback(event.url);
-     // Store tokens securely
-   };
+Error Response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_ERROR",
+    "message": "Invalid refresh token"
+  }
+}
+```
 
-   Linking.addEventListener('url', handleDeepLink);
-   ```
+## 🔒 Security Features
 
-## Security
+- **JWT Token Management**
+  - Access tokens (15 minutes)
+  - Refresh tokens (7 days)
+  - Automatic token rotation
+  - Secure token storage
 
-- **Token Security**
-  - Short-lived JWTs (15 minutes default)
-  - Secure token rotation on refresh
-  - HTTP-only cookies in web environments
+- **Request Protection**
+  - Rate limiting
+  - CORS configuration
+  - Helmet security headers
+  - Request size limiting
+  - JSON payload validation
 
-- **Data Protection**
-  - Encrypted storage of sensitive data
-  - Parameterized queries prevent SQL injection
-  - Rate limiting on authentication endpoints
+- **Email Verification**
+  - 6-digit numeric codes
+  - 15-minute expiration
+  - One-time use codes
+  - Rate-limited requests
+  - Secure email delivery
 
-- **Infrastructure**
-  - CORS configuration for specified origins
-  - Helmet.js for HTTP security headers
-  - Environment-based security configurations
+- **Database Security**
+  - Connection pooling
+  - Prepared statements
+  - Type-safe queries with Drizzle ORM
+  - Encrypted verification codes
 
-## Deployment
+## 🚢 Deployment
 
-1. **Build Production Image**
+### Docker Deployment
+
+1. Build the Docker image:
    ```bash
-   docker build -t mobile-auth:latest .
+   docker build -t mobile-auth .
    ```
 
-2. **Production Configuration**
-   - Set secure JWT secrets
-   - Configure production database URL
-   - Enable production logging
-   - Set appropriate CORS origins
+2. Run the container:
+   ```bash
+   docker run -p 3000:3000 --env-file .env mobile-auth
+   ```
 
-3. **Health Monitoring**
-   - Endpoint: `/health`
-   - Monitors: Database, OAuth providers, system resources
+### Production Considerations
 
-## Contributing
+- Set appropriate environment variables
+- Configure secure database connection
+- Set up proper logging
+- Configure reverse proxy (e.g., Nginx)
+- Enable SSL/TLS
+- Set up monitoring and alerts
+- Configure production SMTP server
+- Enable email delivery tracking
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-Please ensure your PR adheres to:
-- Consistent code style
-- Comprehensive test coverage
-- Clear commit messages
-- Updated documentation
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+Built with ❤️ by [Sathish Kumar](https://github.com/yourusername)
