@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.routes';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { createError, handleError } from './utils/error';
+import { EmailService } from './services/email.service';
 
 /**
  * Express application instance
@@ -14,6 +15,12 @@ import { createError, handleError } from './utils/error';
  */
 
 const app = express();
+
+// Initialize email service and start cleanup schedule
+const emailService = new EmailService();
+emailService.startCleanupSchedule(
+  parseInt(process.env.VERIFICATION_CODE_CLEANUP_INTERVAL_MINUTES || '60', 10)
+);
 
 // Essential security headers
 app.use(helmet({

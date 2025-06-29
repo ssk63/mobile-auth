@@ -1,10 +1,11 @@
 import nodemailer from 'nodemailer';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm';
 import { db } from '../db';
 import { verificationCodes } from '../db/schema';
 
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     // For development, you can use ethereal.email
@@ -87,5 +88,48 @@ export class EmailService {
       .where(eq(verificationCodes.id, result[0].id));
 
     return true;
+  }
+
+  /**
+   * Cleans up expired verification codes from the database
+   * This includes both used and unused codes that have expired
+   */
+  async cleanupExpiredCodes(): Promise<void> {
+    try {
+      const now = new Date();
+      await db
+        .delete(verificationCodes)
+        .where(lt(verificationCodes.expiresAt, now));
+    } catch (error) {
+      console.error('Error cleaning up expired verification codes:', error);
+    }
+  }
+
+  /**
+   * Starts the automatic cleanup of expired verification codes
+   * @param intervalMinutes How often to run the cleanup (in minutes)
+   */
+  startCleanupSchedule(intervalMinutes: number = 60): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+
+    // Run cleanup immediately
+    this.cleanupExpiredCodes().catch(console.error);
+
+    // Schedule regular cleanup
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredCodes().catch(console.error);
+    }, intervalMinutes * 60 * 1000);
+  }
+
+  /**
+   * Stops the automatic cleanup of expired verification codes
+   */
+  stopCleanupSchedule(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 } 
