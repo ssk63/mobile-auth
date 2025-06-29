@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { eq, and, gt, lt } from 'drizzle-orm';
+import { randomInt } from 'crypto';
 import { db } from '../db';
 import { verificationCodes } from '../db/schema';
 
@@ -87,10 +88,14 @@ export class EmailService {
   }
 
   /**
-   * Generates a random 6-digit verification code
+   * Generates a cryptographically secure 6-digit verification code
+   * Uses Node's crypto.randomInt for better security than Math.random()
+   * @returns {string} A 6-digit verification code
    */
   private generateVerificationCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate a number between 100000 and 999999 (inclusive)
+    // This ensures the code is always exactly 6 digits
+    return randomInt(100000, 1000000).toString();
   }
 
   /**
