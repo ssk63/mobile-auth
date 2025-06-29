@@ -3,6 +3,16 @@ import { eq, and, gt, lt } from 'drizzle-orm';
 import { db } from '../db';
 import { verificationCodes } from '../db/schema';
 
+interface EmailConfig {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_pass: string;
+  smtp_secure: boolean;
+  email_from: string;
+  email_domain: string;
+}
+
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private cleanupInterval: NodeJS.Timeout | null = null;
@@ -12,17 +22,68 @@ export class EmailService {
   private readonly supportEmail = process.env.SUPPORT_EMAIL || 'support@dsmn8.com';
 
   constructor() {
-    // For development, you can use ethereal.email
-    // For production, replace with real SMTP credentials
+    // Validate and parse email configuration
+    const config = this.validateEmailConfig();
+
+    // Initialize nodemailer transporter with validated config
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      host: config.smtp_host,
+      port: config.smtp_port,
+      secure: config.smtp_secure,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: config.smtp_user,
+        pass: config.smtp_pass,
       },
     });
+  }
+
+  /**
+   * Validates and returns email configuration
+   * @throws {Error} If required configuration is missing or invalid
+   */
+  private validateEmailConfig(): EmailConfig {
+    const missingVars: string[] = [];
+    const config = {
+      smtp_host: process.env.SMTP_HOST,
+      smtp_port: process.env.SMTP_PORT,
+      smtp_user: process.env.SMTP_USER,
+      smtp_pass: process.env.SMTP_PASS,
+      smtp_secure: process.env.SMTP_SECURE,
+      email_from: process.env.EMAIL_FROM,
+      email_domain: process.env.EMAIL_DOMAIN,
+    };
+
+    // Check required variables
+    if (!config.smtp_host) missingVars.push('SMTP_HOST');
+    if (!config.smtp_port) missingVars.push('SMTP_PORT');
+    if (!config.smtp_user) missingVars.push('SMTP_USER');
+    if (!config.smtp_pass) missingVars.push('SMTP_PASS');
+    
+    // Throw error if any required variables are missing
+    if (missingVars.length > 0) {
+      throw new Error(
+        `Email service configuration missing required variables: ${missingVars.join(', ')}`
+      );
+    }
+
+    // Validate port number
+    const port = parseInt(config.smtp_port as string, 10);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      throw new Error(
+        `Invalid SMTP_PORT: ${config.smtp_port}. Must be a number between 1 and 65535`
+      );
+    }
+
+    // Return validated config with defaults for optional values
+    return {
+      smtp_host: config.smtp_host as string,
+      smtp_port: port,
+      smtp_user: config.smtp_user as string,
+      smtp_pass: config.smtp_pass as string,
+      smtp_secure: config.smtp_secure === 'true',
+      email_from: config.email_from || `"${this.companyName}" <noreply@${config.email_domain || 'dsmn8.com'}>`,
+      email_domain: config.email_domain || 'dsmn8.com'
+    };
   }
 
   /**
