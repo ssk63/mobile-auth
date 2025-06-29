@@ -1,10 +1,31 @@
 import { Router } from 'express';
 import { body, query } from 'express-validator';
+import { rateLimit } from 'express-rate-limit';
 import { AuthController } from '../controllers/auth.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { validate, emailVerificationRules, verifyCodeRules } from '../middleware/validation.middleware';
 
 const router = Router();
+
+// Rate limiter for email verification endpoints
+const emailVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: { 
+    success: false, 
+    message: 'Too many verification attempts. Please try again after 15 minutes.' 
+  }
+});
+
+// Rate limiter for code verification attempts
+const codeVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: { 
+    success: false, 
+    message: 'Too many code verification attempts. Please try again after 15 minutes.' 
+  }
+});
 
 /**
  * @route GET /auth/google/login
@@ -80,6 +101,7 @@ router.post('/logout',
  */
 router.post(
   '/email/request-code',
+  emailVerificationLimiter,
   emailVerificationRules,
   validate,
   AuthController.requestEmailVerification
@@ -136,6 +158,7 @@ router.post(
  */
 router.post(
   '/email/verify',
+  codeVerificationLimiter,
   verifyCodeRules,
   validate,
   AuthController.verifyEmailCode
